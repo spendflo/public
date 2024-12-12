@@ -1,0 +1,37 @@
+# Use GitHub Actions runner as base image
+FROM ghcr.io/actions/actions-runner:2.304.0
+
+USER root
+
+# Install required packages
+RUN apt-get update && apt-get install -y \
+    curl \
+    jq \
+    wget \
+    gpg \
+    apt-transport-https \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js 20
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && npm install -g npm@latest
+
+# Install JDK 21 Temurin
+RUN wget -O - https://packages.adoptium.net/artifactory/api/gpg/key/public | apt-key add - \
+    && echo "deb https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print$2}' /etc/os-release) main" | tee /etc/apt/sources.list.d/adoptium.list \
+    && apt-get update \
+    && apt-get install -y temurin-21-jdk \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy and set up entrypoint script
+COPY github-actions-runner/entrypoint.sh ./entrypoint.sh
+RUN chmod +x ./entrypoint.sh
+
+# Switch back to runner user
+USER runner
+
+# Set entrypoint
+ENTRYPOINT ["./entrypoint.sh"]
